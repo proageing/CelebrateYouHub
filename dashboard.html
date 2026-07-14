@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Celebrate You!</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="topnav">
+    <div class="nav-inner">
+      <a href="dashboard.html" class="brand">Celebrate You! 🌿</a>
+      <nav>
+        <a href="dashboard.html" class="active">My Journey</a>
+        <a href="team.html">My Circle</a>
+        <a href="#" id="signout-link">Sign out</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="container">
+    <h1 id="greeting">Welcome back</h1>
+    <p class="subtitle">Work through each week's nudge at your own pace. Your reflections are reviewed before feedback is sent — check back in a day or two.</p>
+
+    <div class="week-pills" id="week-pills"></div>
+
+    <div class="card" id="week-card">
+      <p class="small">Loading this week's content…</p>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/supabaseClient.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

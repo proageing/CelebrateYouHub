@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/generate-feedback.js": {
+      "maxDuration": 30
+    }
+  }
+}

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Circle — Celebrate You!</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="topnav">
+    <div class="nav-inner">
+      <a href="dashboard.html" class="brand">Celebrate You! 🌿</a>
+      <nav>
+        <a href="dashboard.html">My Journey</a>
+        <a href="team.html" class="active">My Circle</a>
+        <a href="#" id="signout-link">Sign out</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="container">
+    <h1 id="team-title">My Peer Circle</h1>
+    <p class="subtitle">Private to your circle from the course. Share how the week's challenge went, cheer each other on, or ask for support.</p>
+
+    <div class="card" id="team-card">
+      <p class="small">Loading…</p>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/supabaseClient.js"></script>
+  <script src="js/team.js"></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "name": "celebrate-you-hub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Post-course engagement hub for the Celebrate You! healthy longevity programme.",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.0",
+    "@supabase/supabase-js": "^2.45.0"
+  }
+}

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Celebrate You! — Post-Course Hub</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="container" style="max-width: 480px; padding-top: 60px;">
+    <div class="center">
+      <h1>Celebrate You! 🌿</h1>
+      <p class="subtitle">Your 8-week healthy longevity follow-through hub.</p>
+    </div>
+
+    <div class="card">
+      <h2>Sign in</h2>
+      <p class="small">Enter the email you used to register for Celebrate You!. We'll send you a one-time login link — no password needed.</p>
+
+      <form id="login-form">
+        <label for="email">Email address</label>
+        <input type="email" id="email" required placeholder="you@example.com" />
+        <button type="submit" id="login-btn">Send me a login link</button>
+      </form>
+
+      <div id="message"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/supabaseClient.js"></script>
+  <script>
+    // If already signed in, skip straight to the dashboard.
+    supabaseClient.auth.getSession().then(({ data: { session } }) => {
+      if (session) window.location.href = "dashboard.html";
+    });
+
+    const form = document.getElementById("login-form");
+    const messageEl = document.getElementById("message");
+    const btn = document.getElementById("login-btn");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("email").value.trim();
+      btn.disabled = true;
+      btn.textContent = "Sending…";
+      messageEl.innerHTML = "";
+
+      const { error } = await supabaseClient.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: window.location.origin + window.location.pathname.replace("index.html", "") + "dashboard.html" },
+      });
+
+      btn.disabled = false;
+      btn.textContent = "Send me a login link";
+
+      if (error) {
+        messageEl.innerHTML = `<div class="msg error">${error.message}</div>`;
+      } else {
+        messageEl.innerHTML = `<div class="msg success">Check your inbox — we've sent a login link to ${email}.</div>`;
+      }
+    });
+  </script>
+</body>
+</html>
