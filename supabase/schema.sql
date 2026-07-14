@@ -147,7 +147,12 @@ security definer
 set search_path = public
 as $$
 begin
-  if not public.is_admin() then
+  -- auth.uid() is only set for requests made through Supabase's normal
+  -- client/API with a logged-in session (the app). Direct database access
+  -- (SQL Editor, Table Editor, service_role key) has no auth.uid() and is
+  -- already fully trusted, so this check only needs to stop a signed-in
+  -- non-admin participant from self-escalating via the app.
+  if auth.uid() is not null and not public.is_admin() then
     if new.is_admin is distinct from old.is_admin
        or new.team_id is distinct from old.team_id
        or new.cohort_id is distinct from old.cohort_id then
