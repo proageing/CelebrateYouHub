@@ -57,6 +57,9 @@ window.SUPABASE_CONFIG = {
 The anon key is safe to expose in frontend code — everything it can do is
 governed by the Row Level Security policies in `schema.sql`.
 
+Leave `window.API_BASE_URL` as-is for now — you'll come back and set it to
+your Vercel deployment's URL once you've deployed it in step 4.
+
 ### 3. Anthropic API key
 
 Sign up at [console.anthropic.com](https://console.anthropic.com), add billing,
@@ -76,6 +79,11 @@ any file in this repo.
    | `WEBHOOK_SECRET` | make up any long random string — this stops strangers from calling your function |
 3. Deploy. Vercel will give you a URL like `https://celebrate-you-hub.vercel.app`.
    Your feedback endpoint is `https://celebrate-you-hub.vercel.app/api/generate-feedback`.
+4. Back in [`js/config.js`](js/config.js), set `window.API_BASE_URL` to that
+   same Vercel URL (no trailing slash) — this is what powers admin-only
+   actions like deleting a participant (`api/delete-participant.js`), which
+   need the service_role key and so can't run in the browser. Commit and
+   push this change so it takes effect on GitHub Pages.
 
 ### 5. Wire up the Supabase → Vercel webhook
 
@@ -192,6 +200,8 @@ supabase/migration_wait_for_confirmation.sql  Profiles are only created
                                                confirms their email
 api/generate-feedback.js   Vercel function: drafts AI feedback on submission
 api/curriculumContext.js   Curriculum framework reference given to the AI
+api/delete-participant.js  Vercel function: admin-only, deletes a
+                            participant's login + all their data
 ```
 
 ## Notes on the 3-month re-assessment

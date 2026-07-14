@@ -672,23 +672,25 @@ function renderAssignSubtab(el) {
           ${teamOptionsHtml(p.team_id, p.cohort_id)}
         </select>
       </td>
+      <td><button class="secondary" data-delete-participant="${p.id}" data-participant-email="${escapeHtml(p.email)}">Delete</button></td>
     </tr>
   `
     )
     .join("");
 
   el.innerHTML = `
-    <p class="small">Changing a participant's batch or team saves immediately.</p>
+    <p class="small">Changing a participant's batch or team saves immediately. Deleting removes their login and all their submissions, feedback and peer circle posts — this can't be undone.</p>
     <input type="text" id="assign-search" placeholder="Search by name or email…" value="${escapeHtml(assignSearchTerm)}" style="margin-bottom:14px;" />
     <div style="overflow-x:auto;">
       <table>
-        <thead><tr><th>Participant</th><th>Batch</th><th>Team</th></tr></thead>
+        <thead><tr><th>Participant</th><th>Batch</th><th>Team</th><th></th></tr></thead>
         <tbody>${
           participantRows ||
-          `<tr><td colspan="3" class="small">${teamsData.participants.length ? "No participants match that search." : "No participants yet — they'll appear here once they sign in once."}</td></tr>`
+          `<tr><td colspan="4" class="small">${teamsData.participants.length ? "No participants match that search." : "No participants yet — they'll appear here once they sign in once."}</td></tr>`
         }</tbody>
       </table>
     </div>
+    <div id="delete-participant-message"></div>
   `;
 
   const searchInput = document.getElementById("assign-search");
@@ -726,6 +728,37 @@ function renderAssignSubtab(el) {
       }
       await loadTeams();
       await loadEngagement();
+    });
+  });
+
+  el.querySelectorAll("[data-delete-participant]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const email = btn.dataset.participantEmail;
+      if (!confirm(`Delete ${email}? This removes their login and all their submissions, feedback and peer circle posts. This can't be undone.`)) return;
+
+      btn.disabled = true;
+      btn.textContent = "Deleting…";
+      const msgEl = document.getElementById("delete-participant-message");
+
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      const res = await fetch(`${window.API_BASE_URL}/api/delete-participant`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ participantId: btn.dataset.deleteParticipant }),
+      });
+
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: "Unknown error" }));
+        msgEl.innerHTML = `<div class="msg error">Couldn't delete ${email}: ${error}</div>`;
+        btn.disabled = false;
+        btn.textContent = "Delete";
+        return;
+      }
+
+      await loadTeams();
+      await loadEngagement();
+      const freshMsgEl = document.getElementById("delete-participant-message");
+      if (freshMsgEl) freshMsgEl.innerHTML = `<div class="msg success">${email} deleted.</div>`;
     });
   });
 }

@@ -8,3 +8,8 @@ window.SUPABASE_CONFIG = {
 
 // Batch (cohort) start dates are no longer set here — manage them from
 // /admin.html → "Batches & Teams" so staff never need to edit this file.
+
+// Your Vercel deployment's base URL (no trailing slash) — used by
+// admin.html to call the backend functions that need the service_role key
+// (e.g. deleting a participant's account).
+window.API_BASE_URL = "https://celebrateyouhub2.vercel.app";
