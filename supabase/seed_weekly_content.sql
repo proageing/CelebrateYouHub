@@ -14,7 +14,7 @@ $$Share your "In 5 years, I am..." sentence with your accountability buddy — a
 
 (2, 'Protect Your CHOPE', 'Purpose & Identity',
 $$Your CHOPE is your most important priority to protect. Dr Becca Levy at Yale found that a positive mindset about ageing leads to meaningfully better health outcomes and a longer life. When daily choices align with what you value most, stress and regret shrink. When they don't, the cost accumulates quietly. Your CHOPE and your Ikigai are deeply linked — what you protect most often points to your deepest reason to get up each morning.$$,
-'["What did you do this past week that honoured your CHOPE — even in a small way?", "Which SIAM (saboteur) did you catch yourself falling into? Looking at your LifeTime, does the path to your Preferred Future feel clearer or more uncertain than it did on Day 1?"]'::jsonb,
+'["What did you do this past week that honoured your CHOPE — even in a small way?", "Which SIAM (saboteur) did you catch yourself falling into?"]'::jsonb,
 $$Block one 30-minute slot this week to deliberately honour your CHOPE.
 Write down your top SIAM and one strategy to "attack" it this week.$$,
 $$Tell your accountability buddy your CHOPE and the SIAM you're working to overcome. Ask them to check in with you mid-week.$$),
