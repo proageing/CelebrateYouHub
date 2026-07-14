@@ -2,8 +2,8 @@
 // The anon key is safe to expose in frontend code — it only grants what your
 // Row Level Security policies allow (see supabase/schema.sql).
 window.SUPABASE_CONFIG = {
-  url: "YOUR_SUPABASE_PROJECT_URL",
-  anonKey: "YOUR_SUPABASE_ANON_KEY",
+  url: "https://xdmamjeqqqsglqiltzvn.supabase.co",
+  anonKey: "sb_publishable_MwoejoSw7cETq0xp6wte3A_s_jS7JoH",
 };
 
 // The Monday your 8-week nudge programme begins (YYYY-MM-DD).

@@ -40,7 +40,7 @@ comfortably cover this).
    **Redirect URLs** — otherwise magic-link emails won't be able to log people in.
 6. Go to **Project Settings → API**. Note down:
    - **Project URL**
-   - **anon public** key
+   - **anon public** key 
    - **service_role** key (keep this one secret — never put it in frontend code)
 
 ### 2. Fill in `js/config.js`
