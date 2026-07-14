@@ -1,16 +1,5 @@
 let profile = null;
 
-// Per facilitator notes: at Week 8 (programme close), the 3-month
-// re-assessment is the next important step. Programme close is 8 weeks
-// after a cohort's start date; the re-assessment is due 3 months after that.
-function reassessmentDueDate(cohortStartDate) {
-  if (!cohortStartDate) return null;
-  const due = new Date(cohortStartDate + "T00:00:00");
-  due.setDate(due.getDate() + 8 * 7);
-  due.setMonth(due.getMonth() + 3);
-  return due;
-}
-
 document.getElementById("signout-link").addEventListener("click", (e) => {
   e.preventDefault();
   signOut();
@@ -341,15 +330,10 @@ async function loadTeams() {
   const cohortList = (cohorts || [])
     .map((c) => {
       const count = (participants || []).filter((p) => p.cohort_id === c.id).length;
-      const dueDate = reassessmentDueDate(c.start_date);
-      const isDue = dueDate && new Date() >= dueDate;
-      const dueLabel = dueDate
-        ? `<span class="badge ${isDue ? "pending" : "sent"}" style="margin-left:8px;">${isDue ? "⚑ " : ""}3-month re-assessment ${isDue ? "due" : "due " + dueDate.toLocaleDateString()}</span>`
-        : "";
       return `
         <div class="post">
           <div class="meta">
-            <strong>${escapeHtml(c.name)}</strong> — starts ${c.start_date} — ${count} participant${count === 1 ? "" : "s"}${dueLabel}
+            <strong>${escapeHtml(c.name)}</strong> — starts ${c.start_date} — ${count} participant${count === 1 ? "" : "s"}
           </div>
           <label style="margin-top:6px;">Start date</label>
           <input type="date" value="${c.start_date}" data-cohort-date="${c.id}" style="max-width:200px;" />
