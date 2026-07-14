@@ -15,6 +15,11 @@ async function init() {
   if (!session) return;
 
   profile = await getMyProfile();
+  if (profile.is_admin) {
+    window.location.href = "admin.html";
+    return;
+  }
+
   document.getElementById("greeting").textContent = profile.full_name
     ? `Welcome back, ${profile.full_name.split(" ")[0]}`
     : "Welcome back";
