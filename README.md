@@ -52,7 +52,6 @@ window.SUPABASE_CONFIG = {
   url: "<your Project URL>",
   anonKey: "<your anon public key>",
 };
-window.PROGRAM_START_DATE = "2026-08-03"; // the Monday your 8-week programme begins
 ```
 
 The anon key is safe to expose in frontend code — everything it can do is
@@ -109,20 +108,26 @@ any file in this repo.
    row automatically).
 2. In Supabase, go to **Table Editor → profiles**, find your row, and set
    `is_admin` to `true`.
-3. Visit `/admin.html` on your site — you should now see the Review Queue and
-   Engagement dashboard.
+3. Visit `/admin.html` on your site — you should now see the Review Queue,
+   Engagement dashboard, and a **Batches & Teams** tab.
 
-### 8. Add participants and peer circles
+### 8. Add batches, teams, and participants — all from `/admin.html`
 
-For 30 participants, the fastest path is directly in Supabase's Table Editor —
-no custom admin UI was built for this since it's a one-time setup per cohort:
+No Supabase table editing needed for this, it's all in the **Batches & Teams**
+tab:
 
-1. **Table Editor → teams**: add a row per peer circle (e.g. "Circle A").
-2. Participants sign in once via magic link (creates their `profiles` row
-   automatically).
-3. **Table Editor → profiles**: set each participant's `team_id` to the right
-   circle, and fill in `full_name` if you have it (used for greetings and peer
-   board post attribution).
+1. **Create a batch** for each class you run (e.g. "July 2026 Batch"), with
+   its start date — this is what drives which week each participant in that
+   batch currently sees. Running several classes at once just means several
+   batches, each on its own timeline.
+2. **Create a peer circle** (team) per small group you want able to see each
+   other's posts on the private team board.
+3. Have participants sign in once via magic link (creates their `profiles`
+   row automatically) — they'll then appear in the assignment table at the
+   bottom of the tab, where you set each person's batch and team.
+
+Running multiple classes concurrently just means multiple batches — each
+participant only ever sees their own batch's current week.
 
 ---
 
@@ -151,8 +156,11 @@ css/style.css
 js/config.js          ← fill in your Supabase URL/key here
 js/supabaseClient.js  Shared Supabase client + auth/session helpers
 js/dashboard.js, js/team.js, js/admin.js
-supabase/schema.sql             Run once in Supabase SQL Editor
+supabase/schema.sql             Run once in Supabase SQL Editor (fresh installs)
 supabase/seed_weekly_content.sql  Run once, after schema.sql
+supabase/migration_cohorts.sql  For a database that already had the old
+                                 single-batch schema applied — adds the
+                                 `cohorts` table without touching existing data
 api/generate-feedback.js   Vercel function: drafts AI feedback on submission
 api/curriculumContext.js   Curriculum framework reference given to the AI
 ```

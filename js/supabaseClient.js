@@ -36,11 +36,28 @@ async function signOut() {
   window.location.href = "index.html";
 }
 
-// Working out which week (1-8) the programme is currently on, based on
-// PROGRAM_START_DATE from config.js. Participants can still open earlier
+// Fetches the caller's cohort (class batch) row, or null if they haven't
+// been assigned to one yet.
+async function getMyCohort(profile) {
+  if (!profile || !profile.cohort_id) return null;
+  const { data, error } = await supabaseClient
+    .from("cohorts")
+    .select("*")
+    .eq("id", profile.cohort_id)
+    .single();
+  if (error) {
+    console.error("Failed to load cohort", error);
+    return null;
+  }
+  return data;
+}
+
+// Working out which week (1-8) a cohort is currently on, based on its
+// start_date (a "YYYY-MM-DD" string). Participants can still open earlier
 // weeks they missed, but can't jump ahead of the live week.
-function getCurrentWeekNumber() {
-  const start = new Date(window.PROGRAM_START_DATE + "T00:00:00");
+function getCurrentWeekNumber(startDateStr) {
+  if (!startDateStr) return 1;
+  const start = new Date(startDateStr + "T00:00:00");
   const today = new Date();
   const diffDays = Math.floor((today - start) / (1000 * 60 * 60 * 24));
   const week = Math.floor(diffDays / 7) + 1;

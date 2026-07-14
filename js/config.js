@@ -6,6 +6,5 @@ window.SUPABASE_CONFIG = {
   anonKey: "sb_publishable_MwoejoSw7cETq0xp6wte3A_s_jS7JoH",
 };
 
-// The Monday your 8-week nudge programme begins (YYYY-MM-DD).
-// Used to work out which week each participant should currently be on.
-window.PROGRAM_START_DATE = "2026-08-03";
+// Batch (cohort) start dates are no longer set here — manage them from
+// /admin.html → "Batches & Teams" so staff never need to edit this file.

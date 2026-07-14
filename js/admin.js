@@ -160,13 +160,15 @@ async function approveAndSend(id) {
 async function loadEngagement() {
   const el = document.getElementById("tab-engagement");
 
-  const [{ data: participants }, { data: submissions }, { data: feedback }] = await Promise.all([
+  const [{ data: participants }, { data: submissions }, { data: feedback }, { data: cohorts }] = await Promise.all([
     supabaseClient.from("profiles").select("*").eq("is_admin", false).order("full_name"),
     supabaseClient.from("submissions").select("*"),
     supabaseClient.from("feedback_queue").select("*"),
+    supabaseClient.from("cohorts").select("*"),
   ]);
 
-  const currentWeek = getCurrentWeekNumber();
+  const cohortById = {};
+  (cohorts || []).forEach((c) => (cohortById[c.id] = c));
 
   const subKey = (pid, wk) => `${pid}-${wk}`;
   const subMap = {};
@@ -181,11 +183,14 @@ async function loadEngagement() {
 
   const rows = (participants || [])
     .map((p) => {
+      const cohort = p.cohort_id ? cohortById[p.cohort_id] : null;
+      const currentWeek = cohort ? getCurrentWeekNumber(cohort.start_date) : 0;
+
       let cells = "";
       for (let w = 1; w <= 8; w++) {
         const sub = subMap[subKey(p.id, w)];
         let cell = "";
-        if (w > currentWeek) {
+        if (!cohort || w > currentWeek) {
           cell = `<span class="small">—</span>`;
         } else if (!sub) {
           cell = `<span class="badge missing">missing</span>`;
@@ -195,12 +200,13 @@ async function loadEngagement() {
         }
         cells += `<td>${cell}</td>`;
       }
-      return `<tr><td>${escapeHtml(p.full_name || p.email)}</td>${cells}</tr>`;
+      const cohortLabel = cohort ? escapeHtml(cohort.name) : `<span class="small">no batch</span>`;
+      return `<tr><td>${escapeHtml(p.full_name || p.email)}<br/><span class="small">${cohortLabel}</span></td>${cells}</tr>`;
     })
     .join("");
 
   el.innerHTML = `
-    <p class="small">Current programme week: <strong>${currentWeek}</strong> (based on PROGRAM_START_DATE in js/config.js)</p>
+    <p class="small">Each participant's week is calculated from their own cohort's start date (set in the Teams tab).</p>
     <div style="overflow-x:auto;">
       <table>
         <thead><tr><th>Participant</th>${headerCells}</tr></thead>
@@ -210,15 +216,32 @@ async function loadEngagement() {
   `;
 }
 
-// ---------------- Teams ----------------
+// ---------------- Cohorts & Teams ----------------
 
 async function loadTeams() {
   const el = document.getElementById("tab-teams");
 
-  const [{ data: teams }, { data: participants }] = await Promise.all([
+  const [{ data: teams }, { data: cohorts }, { data: participants }] = await Promise.all([
     supabaseClient.from("teams").select("*").order("name"),
+    supabaseClient.from("cohorts").select("*").order("start_date", { ascending: false }),
     supabaseClient.from("profiles").select("*").eq("is_admin", false).order("full_name"),
   ]);
+
+  const cohortList = (cohorts || [])
+    .map((c) => {
+      const count = (participants || []).filter((p) => p.cohort_id === c.id).length;
+      return `
+        <div class="post">
+          <div class="meta">
+            <strong>${escapeHtml(c.name)}</strong> — starts ${c.start_date} — ${count} participant${count === 1 ? "" : "s"}
+          </div>
+          <label style="margin-top:6px;">Start date</label>
+          <input type="date" value="${c.start_date}" data-cohort-date="${c.id}" style="max-width:200px;" />
+          <button class="secondary" data-delete-cohort="${c.id}" style="margin-top:6px;">Delete batch</button>
+        </div>
+      `;
+    })
+    .join("");
 
   const teamList = (teams || [])
     .map((t) => {
@@ -236,8 +259,17 @@ async function loadTeams() {
     .map(
       (p) => `
     <tr>
-      <td>${escapeHtml(p.full_name || "(no name set)")}</td>
-      <td>${escapeHtml(p.email)}</td>
+      <td>${escapeHtml(p.full_name || "(no name set)")}<br/><span class="small">${escapeHtml(p.email)}</span></td>
+      <td>
+        <select data-participant-cohort="${p.id}">
+          <option value="">— Unassigned —</option>
+          ${(cohorts || [])
+            .map(
+              (c) => `<option value="${c.id}" ${p.cohort_id === c.id ? "selected" : ""}>${escapeHtml(c.name)}</option>`
+            )
+            .join("")}
+        </select>
+      </td>
       <td>
         <select data-participant-team="${p.id}">
           <option value="">— Unassigned —</option>
@@ -254,7 +286,25 @@ async function loadTeams() {
     .join("");
 
   el.innerHTML = `
-    <h3>Create a peer circle</h3>
+    <h3>Create a batch (cohort)</h3>
+    <p class="small">Each batch has its own start date — participants in that batch see week 1 from that date, week 2 the following week, and so on.</p>
+    <form id="new-cohort-form" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+      <div style="flex:1; min-width:180px;">
+        <label for="new-cohort-name">Batch name</label>
+        <input type="text" id="new-cohort-name" required placeholder="e.g. July 2026 Batch" />
+      </div>
+      <div style="min-width:180px;">
+        <label for="new-cohort-date">Start date (Monday)</label>
+        <input type="date" id="new-cohort-date" required />
+      </div>
+      <button type="submit" style="margin-top:18px;">Create Batch</button>
+    </form>
+    <div id="cohort-form-message"></div>
+
+    <h3 style="margin-top:28px;">Existing batches</h3>
+    ${cohortList || `<p class="small">No batches yet — create one above.</p>`}
+
+    <h3 style="margin-top:28px;">Create a peer circle</h3>
     <form id="new-team-form" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
       <div style="flex:1; min-width:200px;">
         <label for="new-team-name">Team name</label>
@@ -268,14 +318,29 @@ async function loadTeams() {
     ${teamList || `<p class="small">No teams yet — create one above.</p>`}
 
     <h3 style="margin-top:28px;">Assign participants</h3>
-    <p class="small">Changing a participant's team saves immediately.</p>
+    <p class="small">Changing a participant's batch or team saves immediately.</p>
     <div style="overflow-x:auto;">
       <table>
-        <thead><tr><th>Name</th><th>Email</th><th>Team</th></tr></thead>
+        <thead><tr><th>Participant</th><th>Batch</th><th>Team</th></tr></thead>
         <tbody>${participantRows || `<tr><td colspan="3" class="small">No participants yet — they'll appear here once they sign in once.</td></tr>`}</tbody>
       </table>
     </div>
   `;
+
+  document.getElementById("new-cohort-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const msgEl = document.getElementById("cohort-form-message");
+    const name = document.getElementById("new-cohort-name").value.trim();
+    const startDate = document.getElementById("new-cohort-date").value;
+    if (!name || !startDate) return;
+
+    const { error } = await supabaseClient.from("cohorts").insert({ name, start_date: startDate });
+    if (error) {
+      msgEl.innerHTML = `<div class="msg error">${error.message}</div>`;
+      return;
+    }
+    await loadTeams();
+  });
 
   document.getElementById("new-team-form").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -304,12 +369,52 @@ async function loadTeams() {
     });
   });
 
+  el.querySelectorAll("[data-delete-cohort]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Delete this batch? Members will become unassigned, not deleted.")) return;
+      const { error } = await supabaseClient.from("cohorts").delete().eq("id", btn.dataset.deleteCohort);
+      if (error) {
+        alert(error.message);
+        return;
+      }
+      await loadTeams();
+    });
+  });
+
+  el.querySelectorAll("[data-cohort-date]").forEach((input) => {
+    input.addEventListener("change", async () => {
+      const { error } = await supabaseClient
+        .from("cohorts")
+        .update({ start_date: input.value })
+        .eq("id", input.dataset.cohortDate);
+      if (error) {
+        alert(error.message);
+        return;
+      }
+      await loadTeams();
+      await loadEngagement();
+    });
+  });
+
   el.querySelectorAll("[data-participant-team]").forEach((select) => {
     select.addEventListener("change", async () => {
       const participantId = select.dataset.participantTeam;
       const teamId = select.value || null;
       const { error } = await supabaseClient.from("profiles").update({ team_id: teamId }).eq("id", participantId);
       if (error) alert(error.message);
+    });
+  });
+
+  el.querySelectorAll("[data-participant-cohort]").forEach((select) => {
+    select.addEventListener("change", async () => {
+      const participantId = select.dataset.participantCohort;
+      const cohortId = select.value || null;
+      const { error } = await supabaseClient.from("profiles").update({ cohort_id: cohortId }).eq("id", participantId);
+      if (error) {
+        alert(error.message);
+        return;
+      }
+      await loadEngagement();
     });
   });
 }

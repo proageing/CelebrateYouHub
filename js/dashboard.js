@@ -19,7 +19,14 @@ async function init() {
     ? `Welcome back, ${profile.full_name.split(" ")[0]}`
     : "Welcome back";
 
-  currentWeek = getCurrentWeekNumber();
+  const cohort = await getMyCohort(profile);
+  if (!cohort) {
+    document.getElementById("week-card").innerHTML = `<p class="small">You haven't been assigned to a programme batch yet. Reach out to your facilitator and they'll get you set up — your weekly nudges will appear here once you are.</p>`;
+    document.getElementById("week-pills").style.display = "none";
+    return;
+  }
+
+  currentWeek = getCurrentWeekNumber(cohort.start_date);
   selectedWeek = currentWeek;
 
   const { data: weeklyContent } = await supabaseClient

@@ -1,4 +1,5 @@
 let profile = null;
+let myCurrentWeek = 1;
 
 document.getElementById("signout-link").addEventListener("click", (e) => {
   e.preventDefault();
@@ -10,6 +11,9 @@ async function init() {
   if (!session) return;
 
   profile = await getMyProfile();
+  const cohort = await getMyCohort(profile);
+  myCurrentWeek = getCurrentWeekNumber(cohort ? cohort.start_date : null);
+
   const card = document.getElementById("team-card");
 
   if (!profile.team_id) {
@@ -49,7 +53,7 @@ async function init() {
       team_id: profile.team_id,
       participant_id: profile.id,
       author_name: profile.full_name || profile.email,
-      week_number: getCurrentWeekNumber(),
+      week_number: myCurrentWeek,
       content,
     });
 

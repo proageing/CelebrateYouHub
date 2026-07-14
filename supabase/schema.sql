@@ -11,12 +11,23 @@ create table public.teams (
   created_at timestamptz not null default now()
 );
 
+-- A class batch/run of the programme. Each has its own start date, so the
+-- "current week" is worked out per participant from their own cohort
+-- instead of one global date baked into the frontend.
+create table public.cohorts (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  start_date date not null,
+  created_at timestamptz not null default now()
+);
+
 -- One row per participant, extending Supabase's built-in auth.users.
 create table public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   email text not null,
   full_name text,
   team_id uuid references public.teams (id) on delete set null,
+  cohort_id uuid references public.cohorts (id) on delete set null,
   is_admin boolean not null default false,
   created_at timestamptz not null default now()
 );
@@ -76,6 +87,7 @@ create table public.peer_posts (
 -- ============================================================
 
 alter table public.teams enable row level security;
+alter table public.cohorts enable row level security;
 alter table public.profiles enable row level security;
 alter table public.weekly_content enable row level security;
 alter table public.submissions enable row level security;
@@ -101,7 +113,17 @@ create policy "teams: select own or admin" on public.teams
 create policy "teams: admin write" on public.teams
   for all using (public.is_admin()) with check (public.is_admin());
 
--- profiles: everyone can see their own row; admins see all; users can update their own row.
+-- cohorts: members can see their own cohort; admins see all.
+create policy "cohorts: select own or admin" on public.cohorts
+  for select using (
+    id in (select cohort_id from public.profiles where id = auth.uid())
+    or public.is_admin()
+  );
+create policy "cohorts: admin write" on public.cohorts
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- profiles: everyone can see their own row; admins see all; users can update their own row
+-- (a trigger below stops non-admins from changing team_id/cohort_id/is_admin on themselves).
 create policy "profiles: select own or admin" on public.profiles
   for select using (id = auth.uid() or public.is_admin());
 create policy "profiles: update own" on public.profiles
@@ -110,6 +132,31 @@ create policy "profiles: admin write" on public.profiles
   for all using (public.is_admin()) with check (public.is_admin());
 create policy "profiles: insert own" on public.profiles
   for insert with check (id = auth.uid());
+
+-- Stops a participant from self-assigning a team/cohort or granting themselves
+-- admin by calling the profiles update endpoint directly (RLS above only
+-- restricts *which row*, not *which columns*, a non-admin can update).
+create or replace function public.protect_profile_privilege_columns()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    if new.is_admin is distinct from old.is_admin
+       or new.team_id is distinct from old.team_id
+       or new.cohort_id is distinct from old.cohort_id then
+      raise exception 'Only an admin can change is_admin, team_id or cohort_id';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger protect_profile_privilege_columns
+  before update on public.profiles
+  for each row execute procedure public.protect_profile_privilege_columns();
 
 -- weekly_content: readable by any signed-in participant.
 create policy "weekly_content: read all authenticated" on public.weekly_content
