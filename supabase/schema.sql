@@ -259,6 +259,13 @@ create policy "invited_participants: admin only" on public.invited_participants
 -- AUTO-CREATE PROFILE ON SIGNUP
 -- ============================================================
 
+-- Sending a magic-link invite creates the auth.users row immediately (so the
+-- link is valid to click), well before the person actually confirms it —
+-- some invitees never will. Only create the profile once email_confirmed_at
+-- is actually set, whether that happens straight away (email confirmation
+-- disabled) or later via an UPDATE when they click the link. Fires on every
+-- auth.users update (e.g. last_sign_in_at on each login), so it must be
+-- idempotent — skip if a profile already exists for this id.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -268,6 +275,14 @@ as $$
 declare
   invite public.invited_participants%rowtype;
 begin
+  if new.email_confirmed_at is null then
+    return new;
+  end if;
+
+  if exists (select 1 from public.profiles where id = new.id) then
+    return new;
+  end if;
+
   select * into invite from public.invited_participants where email = new.email;
 
   insert into public.profiles (id, email, full_name, cohort_id, team_id)
@@ -282,5 +297,5 @@ end;
 $$;
 
 create trigger on_auth_user_created
-  after insert on auth.users
+  after insert or update on auth.users
   for each row execute procedure public.handle_new_user();

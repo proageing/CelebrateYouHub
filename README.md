@@ -187,6 +187,9 @@ supabase/migration_facilitator_posts.sql  Lets admins post into any peer
                                            can tell it's from a facilitator
 supabase/migration_brief_content.sql  Updates the 8 weeks of nudge content
                                        to the condensed "brief" wording
+supabase/migration_wait_for_confirmation.sql  Profiles are only created
+                                               once someone actually
+                                               confirms their email
 api/generate-feedback.js   Vercel function: drafts AI feedback on submission
 api/curriculumContext.js   Curriculum framework reference given to the AI
 ```
