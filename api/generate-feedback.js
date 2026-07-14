@@ -45,7 +45,27 @@ module.exports = async (req, res) => {
       return;
     }
 
-    const draft = await draftFeedback({ week, submission, participantName: profile?.full_name });
+    // "Ikigai Thread" — Week 1's Three Sources of Purpose answers should be
+    // revisited at the Week 4 midpoint and again at Week 8 (per facilitator
+    // notes), so the AI can draw a throughline instead of treating each
+    // week in isolation.
+    let week1Context = null;
+    if ([4, 8].includes(submission.week_number)) {
+      const [{ data: week1Sub }, { data: week1Content }] = await Promise.all([
+        supabase
+          .from("submissions")
+          .select("reflection_answers")
+          .eq("participant_id", submission.participant_id)
+          .eq("week_number", 1)
+          .maybeSingle(),
+        supabase.from("weekly_content").select("reflection_prompts").eq("week_number", 1).maybeSingle(),
+      ]);
+      if (week1Sub && week1Content) {
+        week1Context = { prompts: week1Content.reflection_prompts, answers: week1Sub.reflection_answers };
+      }
+    }
+
+    const draft = await draftFeedback({ week, submission, participantName: profile?.full_name, week1Context });
 
     if (existing.data) {
       // Re-submission (participant edited their answers) — refresh the pending draft.
@@ -74,12 +94,23 @@ module.exports = async (req, res) => {
   }
 };
 
-async function draftFeedback({ week, submission, participantName }) {
+async function draftFeedback({ week, submission, participantName, week1Context }) {
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   const answers = (submission.reflection_answers || [])
     .map((a, i) => `Q${i + 1}: ${(week.reflection_prompts || [])[i] || ""}\nA${i + 1}: ${a}`)
     .join("\n\n");
+
+  const week1Block = week1Context
+    ? `\nIkigai Thread — this participant's Week 1 answers on their sources of purpose, for you to weave in (ask which source has grown strongest or become clearer, don't just repeat it back):\n${(week1Context.prompts || [])
+        .map((q, i) => `Q${i + 1}: ${q}\nA${i + 1}: ${(week1Context.answers || [])[i] || ""}`)
+        .join("\n\n")}\n`
+    : "";
+
+  const keystoneNote =
+    week.week_number === 8
+      ? "\nThis is Week 8 — the participant's Keystone Habit declaration here is the single most important output of the entire programme. Acknowledge it explicitly and specifically in your feedback, and connect it back to their CHOPE/Ikigai from earlier weeks if the thread above makes that possible.\n"
+      : "";
 
   const userContent = `
 Week ${week.week_number}: ${week.title} (Domain: ${week.domain})
@@ -91,7 +122,7 @@ ${answers}
 
 Challenge status: ${submission.challenge_status}${submission.challenge_notes ? " — notes: " + submission.challenge_notes : ""}
 ${submission.question_for_facilitator ? `\nThe participant also asked: "${submission.question_for_facilitator}"` : ""}
-
+${week1Block}${keystoneNote}
 Write feedback for this participant and suggested next steps for the coming week.
 `;
 

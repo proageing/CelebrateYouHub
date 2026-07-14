@@ -1,5 +1,16 @@
 let profile = null;
 
+// Per facilitator notes: at Week 8 (programme close), the 3-month
+// re-assessment is the next important step. Programme close is 8 weeks
+// after a cohort's start date; the re-assessment is due 3 months after that.
+function reassessmentDueDate(cohortStartDate) {
+  if (!cohortStartDate) return null;
+  const due = new Date(cohortStartDate + "T00:00:00");
+  due.setDate(due.getDate() + 8 * 7);
+  due.setMonth(due.getMonth() + 3);
+  return due;
+}
+
 document.getElementById("signout-link").addEventListener("click", (e) => {
   e.preventDefault();
   signOut();
@@ -59,6 +70,26 @@ async function loadQueue() {
   const weekMap = {};
   (weeklyContent || []).forEach((w) => (weekMap[w.week_number] = w));
 
+  // "Ikigai Thread" — Week 1's Three Sources of Purpose answers should be
+  // revisited at Week 4 and Week 8 (per facilitator notes). Fetch Week 1
+  // submissions for anyone in the queue whose item is Week 4 or 8.
+  const threadParticipantIds = items
+    .filter((item) => [4, 8].includes(item.submissions.week_number))
+    .map((item) => item.submissions.participant_id);
+  let week1ByParticipant = {};
+  if (threadParticipantIds.length) {
+    const { data: week1Subs } = await supabaseClient
+      .from("submissions")
+      .select("*")
+      .eq("week_number", 1)
+      .in("participant_id", threadParticipantIds);
+    (week1Subs || []).forEach((s) => (week1ByParticipant[s.participant_id] = s));
+  }
+  const week1Prompts = (weekMap[1] && weekMap[1].reflection_prompts) || [];
+
+  const METABOLIC_KEYWORDS = ["diabet", "blood sugar", "blood pressure", "cholesterol", "hypertension", "glucose", "insulin", "metabolic", "prediabetes", "pre-diabetes"];
+  const ISOLATION_KEYWORDS = ["lonely", "loneliness", "isolat", "no one", "nobody", "no friends", "disconnect", "withdrawn", "by myself", "alone"];
+
   el.innerHTML = items
     .map((item, idx) => {
       const sub = item.submissions;
@@ -66,20 +97,44 @@ async function loadQueue() {
       const prompts = week.reflection_prompts || [];
       const answers = sub.reflection_answers || [];
       const participantName = item.profiles?.full_name || item.profiles?.email || "Unknown";
+      const allText = [...answers, sub.challenge_notes, sub.question_for_facilitator].filter(Boolean).join(" ").toLowerCase();
 
       let flags = "";
       if (sub.week_number === 3 && sub.challenge_status === "not_started") {
         flags += `<div class="flag">⚑ Hasn't started exercising by Week 3 — consider a 1:1 coaching check-in.</div>`;
       }
+      if (sub.week_number === 4 && METABOLIC_KEYWORDS.some((k) => allText.includes(k))) {
+        flags += `<div class="flag">⚑ Mentions a possible metabolic concern — consider referring them to their GP before the programme closes.</div>`;
+      }
+      if (sub.week_number === 6 && (sub.challenge_status === "not_started" || ISOLATION_KEYWORDS.some((k) => allText.includes(k)))) {
+        flags += `<div class="flag">⚑ May be low on Social Connection this week — consider a personal message rather than a broadcast reply.</div>`;
+      }
       if (sub.question_for_facilitator) {
         flags += `<div class="flag">⚑ Has a direct question for you (see below).</div>`;
       }
+
+      const week1 = week1ByParticipant[sub.participant_id];
+      const ikigaiThread =
+        [4, 8].includes(sub.week_number) && week1
+          ? `
+        <div class="qa-block ikigai-thread">
+          <div class="q">🧵 Ikigai Thread — their Week 1 answers on purpose, for reference</div>
+          ${week1Prompts
+            .map((q, i) => `<div class="a"><em>${escapeHtml(q)}</em><br/>${escapeHtml((week1.reflection_answers || [])[i] || "(no answer)")}</div>`)
+            .join("")}
+        </div>
+      `
+          : "";
+
+      const challengeLabel = sub.week_number === 8 ? "🔑 Keystone Habit & closing reflections" : "Challenge status";
+      const challengeBlockClass = sub.week_number === 8 ? "qa-block keystone" : "qa-block";
 
       return `
         <div class="review-item" data-id="${item.id}">
           <h3>${escapeHtml(participantName)} — Week ${sub.week_number}: ${escapeHtml(week.title || "")}</h3>
           <p class="small">Submitted ${new Date(sub.submitted_at).toLocaleString()}</p>
           ${flags}
+          ${ikigaiThread}
 
           ${prompts
             .map(
@@ -92,8 +147,8 @@ async function loadQueue() {
             )
             .join("")}
 
-          <div class="qa-block">
-            <div class="q">Challenge status</div>
+          <div class="${challengeBlockClass}">
+            <div class="q">${challengeLabel}</div>
             <div class="a">${escapeHtml(sub.challenge_status)}${sub.challenge_notes ? " — " + escapeHtml(sub.challenge_notes) : ""}</div>
           </div>
 
@@ -162,11 +217,12 @@ async function approveAndSend(id) {
 async function loadEngagement() {
   const el = document.getElementById("tab-engagement");
 
-  const [{ data: participants }, { data: submissions }, { data: feedback }, { data: cohorts }] = await Promise.all([
+  const [{ data: participants }, { data: submissions }, { data: feedback }, { data: cohorts }, { data: peerPosts }] = await Promise.all([
     supabaseClient.from("profiles").select("*").eq("is_admin", false).order("full_name"),
     supabaseClient.from("submissions").select("*"),
     supabaseClient.from("feedback_queue").select("*"),
     supabaseClient.from("cohorts").select("*"),
+    supabaseClient.from("peer_posts").select("participant_id").eq("is_facilitator_post", false),
   ]);
 
   const cohortById = {};
@@ -179,6 +235,7 @@ async function loadEngagement() {
   (feedback || []).forEach((f) => {
     fbMap[f.submission_id] = f;
   });
+  const postedParticipantIds = new Set((peerPosts || []).map((p) => p.participant_id));
 
   let headerCells = "";
   for (let w = 1; w <= 8; w++) headerCells += `<th>Wk ${w}</th>`;
@@ -189,26 +246,43 @@ async function loadEngagement() {
       const currentWeek = cohort ? getCurrentWeekNumber(cohort.start_date) : 0;
 
       let cells = "";
+      let missingCount = 0;
+      let availableCount = 0;
       for (let w = 1; w <= 8; w++) {
         const sub = subMap[subKey(p.id, w)];
         let cell = "";
         if (!cohort || w > currentWeek) {
           cell = `<span class="small">—</span>`;
-        } else if (!sub) {
-          cell = `<span class="badge missing">missing</span>`;
         } else {
-          const fb = fbMap[sub.id];
-          cell = fb && fb.status === "sent" ? `<span class="badge sent">sent</span>` : `<span class="badge pending">pending</span>`;
+          availableCount++;
+          if (!sub) {
+            missingCount++;
+            cell = `<span class="badge missing">missing</span>`;
+          } else {
+            const fb = fbMap[sub.id];
+            cell = fb && fb.status === "sent" ? `<span class="badge sent">sent</span>` : `<span class="badge pending">pending</span>`;
+          }
         }
         cells += `<td>${cell}</td>`;
       }
+
+      // Signs of strong engagement (facilitator notes): no missed weeks so
+      // far, active independently in their peer circle, and — once
+      // available — completed Week 8's re-score.
+      const engagementScore =
+        (availableCount > 0 && missingCount === 0 ? 1 : 0) +
+        (postedParticipantIds.has(p.id) ? 1 : 0) +
+        (subMap[subKey(p.id, 8)] ? 1 : 0);
+      const engagementBadge =
+        availableCount > 0 && engagementScore >= 2 ? `<span title="Strong engagement" style="margin-left:6px;">🌟</span>` : "";
+
       const cohortLabel = cohort ? escapeHtml(cohort.name) : `<span class="small">no batch</span>`;
-      return `<tr><td>${escapeHtml(p.full_name || p.email)}<br/><span class="small">${cohortLabel}</span></td>${cells}</tr>`;
+      return `<tr><td>${escapeHtml(p.full_name || p.email)}${engagementBadge}<br/><span class="small">${cohortLabel}</span></td>${cells}</tr>`;
     })
     .join("");
 
   el.innerHTML = `
-    <p class="small">Each participant's week is calculated from their own cohort's start date (set in the Teams tab).</p>
+    <p class="small">Each participant's week is calculated from their own cohort's start date (set in the Teams tab). 🌟 marks strong engagement — no missed weeks, active in their peer circle, or Week 8 complete (2 of 3).</p>
     <div style="overflow-x:auto;">
       <table>
         <thead><tr><th>Participant</th>${headerCells}</tr></thead>
@@ -267,10 +341,15 @@ async function loadTeams() {
   const cohortList = (cohorts || [])
     .map((c) => {
       const count = (participants || []).filter((p) => p.cohort_id === c.id).length;
+      const dueDate = reassessmentDueDate(c.start_date);
+      const isDue = dueDate && new Date() >= dueDate;
+      const dueLabel = dueDate
+        ? `<span class="badge ${isDue ? "pending" : "sent"}" style="margin-left:8px;">${isDue ? "⚑ " : ""}3-month re-assessment ${isDue ? "due" : "due " + dueDate.toLocaleDateString()}</span>`
+        : "";
       return `
         <div class="post">
           <div class="meta">
-            <strong>${escapeHtml(c.name)}</strong> — starts ${c.start_date} — ${count} participant${count === 1 ? "" : "s"}
+            <strong>${escapeHtml(c.name)}</strong> — starts ${c.start_date} — ${count} participant${count === 1 ? "" : "s"}${dueLabel}
           </div>
           <label style="margin-top:6px;">Start date</label>
           <input type="date" value="${c.start_date}" data-cohort-date="${c.id}" style="max-width:200px;" />
