@@ -303,10 +303,8 @@ button:disabled {
   border-radius: 8px;
   padding: 14px 16px;
 }
-.post.facilitator .meta strong::after {
-  content: " · Facilitator";
+.post.facilitator .meta strong {
   color: var(--primary-dark);
-  font-weight: 700;
 }
 
 /* ---------- Misc ---------- */
