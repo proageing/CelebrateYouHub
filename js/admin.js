@@ -384,7 +384,7 @@ async function loadTeams() {
 
   el.innerHTML = `
     <h3>Invite a participant</h3>
-    <p class="small">Assign someone's batch/team before they ever sign in — their account is created already set up the first time they use their magic link, instead of landing on an empty screen.</p>
+    <p class="small">Sends them a login link by email right away, with their batch/team already assigned — so their account is set up correctly the moment they click it, instead of landing on an empty screen.</p>
     <form id="invite-form" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
       <div style="flex:1; min-width:200px;">
         <label for="invite-email">Email</label>
@@ -505,7 +505,21 @@ async function loadTeams() {
       msgEl.innerHTML = `<div class="msg error">${error.message}</div>`;
       return;
     }
-    msgEl.innerHTML = `<div class="msg success">${existingProfile ? "Existing participant updated." : "Invite saved — they'll be set up automatically on first sign-in."}</div>`;
+
+    // Staging the invite/profile update alone never sends anything —
+    // trigger the actual login-link email now, the same way a participant
+    // requesting their own link does. Doesn't affect the admin's own
+    // session, it just emails the invited address.
+    const { error: otpError } = await supabaseClient.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.origin + window.location.pathname.replace("admin.html", "") + "dashboard.html" },
+    });
+
+    if (otpError) {
+      msgEl.innerHTML = `<div class="msg error">Saved, but couldn't send the login email: ${otpError.message}</div>`;
+    } else {
+      msgEl.innerHTML = `<div class="msg success">Invite email sent to ${email}. ${existingProfile ? "Their existing account was also updated." : ""}</div>`;
+    }
     await loadTeams();
     await loadEngagement();
   });
