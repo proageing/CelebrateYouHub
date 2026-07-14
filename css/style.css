@@ -59,11 +59,31 @@ header.topnav .nav-inner {
   gap: 10px;
 }
 header.topnav .brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
   font-family: "Montserrat", sans-serif;
   font-size: 20px;
   font-weight: 800;
   color: var(--white);
   text-decoration: none;
+}
+.brand-icon {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+/* ---------- Hero lockup (index.html) ---------- */
+.hero-lockup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.hero-icon {
+  width: 56px;
+  height: 56px;
+  margin-bottom: 6px;
 }
 header.topnav nav a {
   color: #d8d8d8;
