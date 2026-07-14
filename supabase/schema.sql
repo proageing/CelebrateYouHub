@@ -5,12 +5,6 @@
 -- TABLES
 -- ============================================================
 
-create table public.teams (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,
-  created_at timestamptz not null default now()
-);
-
 -- A class batch/run of the programme. Each has its own start date, so the
 -- "current week" is worked out per participant from their own cohort
 -- instead of one global date baked into the frontend.
@@ -18,6 +12,16 @@ create table public.cohorts (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   start_date date not null,
+  created_at timestamptz not null default now()
+);
+
+-- A peer circle belongs to exactly one batch (a participant's team and
+-- cohort must match — enforced by a trigger below) so a team never spans
+-- people who are on different weeks of the programme.
+create table public.teams (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  cohort_id uuid references public.cohorts (id) on delete cascade,
   created_at timestamptz not null default now()
 );
 
@@ -157,6 +161,32 @@ $$;
 create trigger protect_profile_privilege_columns
   before update on public.profiles
   for each row execute procedure public.protect_profile_privilege_columns();
+
+-- Stops a participant being assigned to a team that belongs to a different
+-- batch than their own cohort (teams with no cohort_id set are treated as
+-- unscoped/legacy and skip this check).
+create or replace function public.validate_profile_team_cohort()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  team_cohort uuid;
+begin
+  if new.team_id is not null then
+    select cohort_id into team_cohort from public.teams where id = new.team_id;
+    if team_cohort is not null and new.cohort_id is distinct from team_cohort then
+      raise exception 'This team belongs to a different batch than the participant''s assigned batch';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger validate_profile_team_cohort
+  before insert or update on public.profiles
+  for each row execute procedure public.validate_profile_team_cohort();
 
 -- weekly_content: readable by any signed-in participant.
 create policy "weekly_content: read all authenticated" on public.weekly_content

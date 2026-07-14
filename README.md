@@ -121,7 +121,9 @@ tab:
    batch currently sees. Running several classes at once just means several
    batches, each on its own timeline.
 2. **Create a peer circle** (team) per small group you want able to see each
-   other's posts on the private team board.
+   other's posts on the private team board — each team belongs to one batch,
+   so participants from different classes can never end up sharing a peer
+   circle (the database enforces this, not just the UI).
 3. **Invite participants ahead of time**: enter their email (plus batch/team)
    in the "Invite a participant" form *before* they've ever signed in. Their
    account is created already assigned the moment they use their first magic
@@ -178,6 +180,8 @@ supabase/migration_cohorts.sql  For a database that already had the old
                                  `cohorts` table without touching existing data
 supabase/migration_invites.sql  Adds pre-invite support (assign a batch/team
                                  to an email before they've signed in)
+supabase/migration_team_cohort.sql  Ties each team to one batch and enforces
+                                     it at the database level
 api/generate-feedback.js   Vercel function: drafts AI feedback on submission
 api/curriculumContext.js   Curriculum framework reference given to the AI
 ```

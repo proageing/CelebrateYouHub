@@ -232,8 +232,13 @@ async function loadTeams() {
     (cohorts || [])
       .map((c) => `<option value="${c.id}" ${selectedId === c.id ? "selected" : ""}>${escapeHtml(c.name)}</option>`)
       .join("");
-  const teamOptionsHtml = (selectedId) =>
-    (teams || [])
+
+  // Teams with no cohort_id are legacy/unscoped and stay selectable from any
+  // batch; teams tied to a cohort only show up for participants in that
+  // same cohort (the database enforces this too — see validate_profile_team_cohort).
+  const teamsForCohort = (cohortId) => (teams || []).filter((t) => !t.cohort_id || t.cohort_id === cohortId);
+  const teamOptionsHtml = (selectedId, cohortId) =>
+    teamsForCohort(cohortId)
       .map((t) => `<option value="${t.id}" ${selectedId === t.id ? "selected" : ""}>${escapeHtml(t.name)}</option>`)
       .join("");
 
@@ -279,6 +284,11 @@ async function loadTeams() {
       return `
         <div class="post">
           <div class="meta"><strong>${escapeHtml(t.name)}</strong> — ${count} participant${count === 1 ? "" : "s"}</div>
+          <label style="margin-top:6px;">Batch</label>
+          <select data-team-cohort="${t.id}" style="max-width:220px;">
+            <option value="">— Unscoped (any batch) —</option>
+            ${cohortOptionsHtml(t.cohort_id)}
+          </select>
           <button class="secondary" data-delete-team="${t.id}" style="margin-top:6px;">Delete team</button>
         </div>
       `;
@@ -293,21 +303,13 @@ async function loadTeams() {
       <td>
         <select data-participant-cohort="${p.id}">
           <option value="">— Unassigned —</option>
-          ${(cohorts || [])
-            .map(
-              (c) => `<option value="${c.id}" ${p.cohort_id === c.id ? "selected" : ""}>${escapeHtml(c.name)}</option>`
-            )
-            .join("")}
+          ${cohortOptionsHtml(p.cohort_id)}
         </select>
       </td>
       <td>
         <select data-participant-team="${p.id}">
           <option value="">— Unassigned —</option>
-          ${(teams || [])
-            .map(
-              (t) => `<option value="${t.id}" ${p.team_id === t.id ? "selected" : ""}>${escapeHtml(t.name)}</option>`
-            )
-            .join("")}
+          ${teamOptionsHtml(p.team_id, p.cohort_id)}
         </select>
       </td>
     </tr>
@@ -338,7 +340,7 @@ async function loadTeams() {
         <label for="invite-team">Team (optional)</label>
         <select id="invite-team">
           <option value="">— None yet —</option>
-          ${teamOptionsHtml(null)}
+          ${teamOptionsHtml(null, null)}
         </select>
       </div>
       <button type="submit" style="margin-top:18px;">Invite</button>
@@ -366,10 +368,18 @@ async function loadTeams() {
     ${cohortList || `<p class="small">No batches yet — create one above.</p>`}
 
     <h3 style="margin-top:28px;">Create a peer circle</h3>
+    <p class="small">A team belongs to one batch — only participants in that batch can be assigned to it.</p>
     <form id="new-team-form" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
       <div style="flex:1; min-width:200px;">
         <label for="new-team-name">Team name</label>
         <input type="text" id="new-team-name" required placeholder="e.g. Circle A" />
+      </div>
+      <div style="min-width:180px;">
+        <label for="new-team-cohort">Batch</label>
+        <select id="new-team-cohort" required>
+          <option value="" disabled selected>Choose a batch…</option>
+          ${cohortOptionsHtml(null)}
+        </select>
       </div>
       <button type="submit" style="margin-top:18px;">Create Team</button>
     </form>
@@ -387,6 +397,11 @@ async function loadTeams() {
       </table>
     </div>
   `;
+
+  document.getElementById("invite-cohort").addEventListener("change", (e) => {
+    document.getElementById("invite-team").innerHTML =
+      `<option value="">— None yet —</option>` + teamOptionsHtml(null, e.target.value || null);
+  });
 
   document.getElementById("invite-form").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -464,9 +479,10 @@ async function loadTeams() {
     const nameInput = document.getElementById("new-team-name");
     const msgEl = document.getElementById("team-form-message");
     const name = nameInput.value.trim();
-    if (!name) return;
+    const cohortId = document.getElementById("new-team-cohort").value;
+    if (!name || !cohortId) return;
 
-    const { error } = await supabaseClient.from("teams").insert({ name });
+    const { error } = await supabaseClient.from("teams").insert({ name, cohort_id: cohortId });
     if (error) {
       msgEl.innerHTML = `<div class="msg error">${error.message}</div>`;
       return;
@@ -478,6 +494,20 @@ async function loadTeams() {
     btn.addEventListener("click", async () => {
       if (!confirm("Delete this team? Members will become unassigned, not deleted.")) return;
       const { error } = await supabaseClient.from("teams").delete().eq("id", btn.dataset.deleteTeam);
+      if (error) {
+        alert(error.message);
+        return;
+      }
+      await loadTeams();
+    });
+  });
+
+  el.querySelectorAll("[data-team-cohort]").forEach((select) => {
+    select.addEventListener("change", async () => {
+      const { error } = await supabaseClient
+        .from("teams")
+        .update({ cohort_id: select.value || null })
+        .eq("id", select.dataset.teamCohort);
       if (error) {
         alert(error.message);
         return;
@@ -526,11 +556,17 @@ async function loadTeams() {
     select.addEventListener("change", async () => {
       const participantId = select.dataset.participantCohort;
       const cohortId = select.value || null;
-      const { error } = await supabaseClient.from("profiles").update({ cohort_id: cohortId }).eq("id", participantId);
+      // Changing batch also clears any team assignment, since a team belongs
+      // to one batch — the admin re-picks a team from the new batch's list.
+      const { error } = await supabaseClient
+        .from("profiles")
+        .update({ cohort_id: cohortId, team_id: null })
+        .eq("id", participantId);
       if (error) {
         alert(error.message);
         return;
       }
+      await loadTeams();
       await loadEngagement();
     });
   });
