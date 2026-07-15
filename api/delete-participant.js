@@ -7,6 +7,20 @@ const { createClient } = require("@supabase/supabase-js");
 // touching anything, since this is destructive and cascades to all of that
 // participant's submissions, feedback and peer circle posts.
 module.exports = async (req, res) => {
+  // Called directly from the browser (admin.html), on a different origin
+  // than this function — unlike generate-feedback.js, which only Supabase's
+  // webhook ever calls server-to-server. Without these headers the browser
+  // blocks the request at the preflight OPTIONS check before it ever
+  // reaches the admin/auth logic below.
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  if (req.method === "OPTIONS") {
+    res.status(204).end();
+    return;
+  }
+
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
     return;
