@@ -142,9 +142,6 @@ function renderWeek(weekNumber) {
           : ""
       }
 
-      <span class="section-label">👥 Peer Circle</span>
-      <p class="challenge-text">${escapeHtml(week.peer_circle_prompt)}</p>
-
       <div class="info-box">
         <span class="section-label">❓ Ask Your Facilitator</span>
         <p class="challenge-text">Optional — got a question about applying this to your own situation? Ask here.</p>
