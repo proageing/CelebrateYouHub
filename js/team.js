@@ -21,14 +21,23 @@ async function init() {
     return;
   }
 
-  const { data: team } = await supabaseClient
-    .from("teams")
-    .select("*")
-    .eq("id", profile.team_id)
-    .single();
+  const [{ data: team }, { data: week }] = await Promise.all([
+    supabaseClient.from("teams").select("*").eq("id", profile.team_id).single(),
+    supabaseClient.from("weekly_content").select("peer_circle_prompt").eq("week_number", myCurrentWeek).maybeSingle(),
+  ]);
   if (team) document.getElementById("team-title").textContent = `My Peer Circle — ${team.name}`;
 
+  const promptBlock = week
+    ? `
+    <div class="info-box">
+      <span class="section-label">👥 This Week's Peer Circle Prompt</span>
+      <p class="challenge-text">${escapeHtml(week.peer_circle_prompt)}</p>
+    </div>
+  `
+    : "";
+
   card.innerHTML = `
+    ${promptBlock}
     <form id="post-form">
       <label for="post-content">Share something with your circle</label>
       <textarea id="post-content" required placeholder="How did this week's challenge go? What are you working on?"></textarea>

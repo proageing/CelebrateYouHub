@@ -153,16 +153,16 @@ h3 {
   background: #f0f0f0;
 }
 
-.facilitator-question {
+.info-box {
   background: var(--info-light);
   border-radius: 10px;
   padding: 16px 18px 18px;
   margin-top: 18px;
 }
-.facilitator-question textarea {
+.info-box textarea {
   background: var(--white);
 }
-.facilitator-question .section-label {
+.info-box .section-label {
   color: var(--info);
   background: var(--white);
 }
