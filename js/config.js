@@ -1,15 +1,18 @@
-// Fill these in after you create your Supabase project (Project Settings → API).
-// The anon key is safe to expose in frontend code — it only grants what your
-// Row Level Security policies allow (see supabase/schema.sql).
+// STAGING CONFIG — this file must only ever exist on the `staging` branch
+// (and branches based on it). Never merge changes to this file into `main`.
+//
+// Fill these in once you've created the staging Supabase project
+// (Project Settings → API). The anon key is safe to expose in frontend
+// code — it only grants what your Row Level Security policies allow.
 window.SUPABASE_CONFIG = {
-  url: "https://xdmamjeqqqsglqiltzvn.supabase.co",
-  anonKey: "sb_publishable_MwoejoSw7cETq0xp6wte3A_s_jS7JoH",
+  url: "YOUR_STAGING_SUPABASE_PROJECT_URL",
+  anonKey: "YOUR_STAGING_SUPABASE_ANON_KEY",
 };
 
 // Batch (cohort) start dates are no longer set here — manage them from
 // /admin.html → "Batches & Teams" so staff never need to edit this file.
 
-// Your Vercel deployment's base URL (no trailing slash) — used by
-// admin.html to call the backend functions that need the service_role key
-// (e.g. deleting a participant's account).
-window.API_BASE_URL = "https://celebrateyouhub2.vercel.app";
+// Fill this in once you push the `staging` branch and Vercel creates its
+// preview deployment for it (check the Vercel dashboard for the URL, or
+// the deployment comment on the branch/PR).
+window.API_BASE_URL = "YOUR_STAGING_VERCEL_PREVIEW_URL";
