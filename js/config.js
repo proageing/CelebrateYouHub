@@ -5,8 +5,8 @@
 // (Project Settings → API). The anon key is safe to expose in frontend
 // code — it only grants what your Row Level Security policies allow.
 window.SUPABASE_CONFIG = {
-  url: "YOUR_STAGING_SUPABASE_PROJECT_URL",
-  anonKey: "YOUR_STAGING_SUPABASE_ANON_KEY",
+  url: "https://hiouybvrqzgsjqufpnun.supabase.co",
+  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhpb3V5YnZycXpnc2pxdWZwbnVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxOTI5NzcsImV4cCI6MjA5OTc2ODk3N30.l4Njr56TbCurCEpxgOytQy9P7MirHhktmft6cCN29Sg",
 };
 
 // Batch (cohort) start dates are no longer set here — manage them from
